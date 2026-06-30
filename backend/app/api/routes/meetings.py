@@ -153,3 +153,39 @@ def get_meeting_detail(meeting_id: str, user: dict = Depends(get_current_user)) 
         minutes=Minutes.model_validate(record.get("minutes", {})),
         markdown=markdown,
     )
+
+
+@router.delete("/{meeting_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_meeting(
+    meeting_id: str,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(get_current_user),
+):
+    """删除指定会议。不存在或非本人则 404。
+
+    先鉴权：get_meeting 已按 user_id 隔离，非本人记录查不到 → 404。
+    纪要文件同步删除；向量 chunk 异步删除（失败仅记日志，不阻断）。
+    """
+    record = meeting_store.get_meeting(user["user_id"], meeting_id)
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="会议不存在")
+
+    deleted = meeting_store.delete_meeting(user["user_id"], meeting_id)
+    if not deleted:
+        # 并发删除等极端情况；仍按 404 处理
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="会议不存在")
+
+    # 向量清理放后台，不阻塞响应
+    background_tasks.add_task(
+        _delete_vectors_task, user["user_id"], meeting_id
+    )
+    return None
+
+
+def _delete_vectors_task(user_id: str, meeting_id: str) -> None:
+    """后台任务：清理被删会议的向量 chunk。失败仅记日志。"""
+    try:
+        vector_store.delete_meeting(user_id=user_id, meeting_id=meeting_id)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("后台向量清理失败 meeting_id=%s", meeting_id)

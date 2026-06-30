@@ -153,3 +153,35 @@ def search(user_id: str | None, session_id: str, query: str,
     filter_dict: dict = {"user_id": user_id or ""} if user_id else {"session_id": session_id or ""}
     docs = vs.similarity_search(query, k=top_k, filter=filter_dict)
     return [{"text": d.page_content, "metadata": d.metadata} for d in docs]
+
+
+def delete_meeting(user_id: str | None, meeting_id: str) -> int:
+    """删除某会议在向量库中的全部 chunk（按 meeting_id metadata 过滤）。
+
+    登录用户在其 ``user_{user_id}`` collection 内删；匿名在 ``anonymous_pool`` 内按
+    meeting_id 过滤删（匿名会议无历史项，通常不会走到这里，但保留以防误调）。
+    失败仅记日志、不抛异常——纪要文件是主数据源，向量删除失败不应阻断删除流程。
+    返回实际删除的 chunk 数。
+    """
+    try:
+        vs = Chroma(
+            embedding_function=_get_embeddings(),
+            collection_name=collection_name(user_id),
+            persist_directory=_persist_dir(),
+        )
+        # langchain Chroma.delete 只接受 ids；chromadb 1.x Collection.delete 不再支持
+        # filter/where，故先 get 出该会议全部 chunk 的 id（get 用 chromadb 原生键 where），
+        # 再按 ids 删除。
+        where: dict = {"meeting_id": meeting_id}
+        got = vs.get(where=where, include=[])
+        ids = got.get("ids") or []
+        if not ids:
+            logger.info("向量删除跳过：无匹配 chunk meeting_id=%s", meeting_id)
+            return 0
+        vs.delete(ids=ids)
+        logger.info("向量删除完成: %s 个 chunk meeting_id=%s collection=%s",
+                    len(ids), meeting_id, collection_name(user_id))
+        return len(ids)
+    except Exception:
+        logger.exception("向量删除失败 meeting_id=%s", meeting_id)
+        return 0

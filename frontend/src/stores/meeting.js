@@ -77,6 +77,15 @@ export const useMeetingStore = defineStore('meeting', {
       return data
     },
 
+    // 删除历史会议：从列表移除；若删的正是当前展示项，清空主区
+    async removeMeeting(meetingId) {
+      await meetingsApi.deleteMeeting(meetingId)
+      this.history = this.history.filter((m) => m.meeting_id !== meetingId)
+      const wasCurrent = this.currentMeetingId === meetingId
+      if (wasCurrent) this.clear()
+      return { wasCurrent }
+    },
+
     // RAG 追问
     async sendQuery(question) {
       if (!question.trim() || this.asking) return

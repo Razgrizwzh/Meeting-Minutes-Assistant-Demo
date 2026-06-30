@@ -82,3 +82,15 @@ def get_meeting(user_id: str, meeting_id: str) -> dict | None:
         return json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return None
+
+
+def delete_meeting(user_id: str, meeting_id: str) -> bool:
+    """删除一条会议记录。存在且已删除返回 True，不存在返回 False。"""
+    path = _user_dir(user_id) / f"{meeting_id}.json"
+    if not path.exists():
+        return False
+    try:
+        path.unlink()
+    except OSError:
+        return False
+    return True

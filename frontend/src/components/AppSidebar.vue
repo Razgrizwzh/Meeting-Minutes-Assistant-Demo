@@ -1,7 +1,7 @@
 <script setup>
 import { watch, ref } from 'vue'
-import { Fold, Expand, Clock, Document } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { Fold, Expand, Clock, Document, Delete } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 import { useMeetingStore } from '@/stores/meeting'
@@ -12,6 +12,8 @@ const meeting = useMeetingStore()
 
 // 当前选中的历史项 id（高亮）
 const activeId = ref(null)
+// 正在删除的项 id（按钮 loading）
+const deletingId = ref(null)
 
 // 登录状态变化时加载/清空历史
 watch(
@@ -35,6 +37,32 @@ async function openMeeting(item) {
     const detail = err.response?.data?.detail || '加载会议详情失败'
     ElMessage.error(detail)
     activeId.value = null
+  }
+}
+
+async function onDeleteClick(item) {
+  // ElMessageBox.confirm 返回 promise，用户点取消时 reject('cancel')，需吞掉以免报错
+  try {
+    await ElMessageBox.confirm(
+      `确定删除「${item.meeting_name}」吗？该会议纪要将被永久删除。`,
+      '删除确认',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' },
+    )
+  } catch {
+    return // 用户取消
+  }
+
+  deletingId.value = item.meeting_id
+  try {
+    const { wasCurrent } = await meeting.removeMeeting(item.meeting_id)
+    if (activeId.value === item.meeting_id) activeId.value = null
+    ElMessage.success(wasCurrent ? '已删除，当前查看的纪要已清空' : '已删除')
+  } catch (err) {
+    const raw = err.response?.data?.detail
+    const detail = Array.isArray(raw) ? raw[0]?.msg : raw || '删除失败，请重试'
+    ElMessage.error(detail)
+  } finally {
+    deletingId.value = null
   }
 }
 </script>
@@ -79,6 +107,15 @@ async function openMeeting(item) {
             <div class="item-name">{{ item.meeting_name }}</div>
             <div class="item-date">{{ item.date || '—' }}</div>
           </div>
+          <el-button
+            v-show="!ui.sidebarCollapsed"
+            class="item-delete"
+            link
+            :icon="Delete"
+            :loading="deletingId === item.meeting_id"
+            @click.stop="onDeleteClick(item)"
+            title="删除"
+          />
         </li>
       </ul>
     </div>
@@ -146,6 +183,24 @@ async function openMeeting(item) {
 }
 .history-item.active .item-date {
   color: rgba(255, 255, 255, 0.8);
+}
+.item-delete {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  color: var(--ma-text-secondary);
+}
+.history-item:hover .item-delete {
+  opacity: 1;
+}
+.item-delete:hover {
+  color: var(--ma-danger, #f56c6c);
+}
+.history-item.active .item-delete {
+  color: rgba(255, 255, 255, 0.85);
+}
+.history-item.active .item-delete:hover {
+  color: #fff;
 }
 .item-icon {
   font-size: 16px;

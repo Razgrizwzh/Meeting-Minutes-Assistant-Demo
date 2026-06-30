@@ -25,6 +25,9 @@ export const listHistory = () => http.get('/meetings/history')
 // 会议详情
 export const getMeeting = (meetingId) => http.get(`/meetings/${meetingId}`)
 
+// 删除会议（需登录）—— 返回 204，成功无 body
+export const deleteMeeting = (meetingId) => http.delete(`/meetings/${meetingId}`)
+
 // 导出（返回 Blob）：format = 'md' | 'docx'
 export const exportMeeting = (meetingId, format) =>
   http.get(`/meetings/${meetingId}/export`, {
