@@ -1,0 +1,37 @@
+# ============================================================
+# 会议纪要助手 —— 后端依赖
+# 版本策略：地板锁（>=）+ 对 LangChain 三件套加宽松上界
+# 本地 demo 单机运行，无需精确 patch 锁；地板锁保证拿到现代 API
+# ============================================================
+
+# ---- Web 框架 ----
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9            # multipart/form-data 文件上传 + OAuth2PasswordRequestForm
+
+# ---- 配置与校验（Pydantic v2）----
+pydantic>=2.6.0
+pydantic-settings>=2.1.0           # BaseSettings 在 Pydantic v2 迁移至此
+
+# ---- 认证 ----
+python-jose[cryptography]>=3.3.0   # JWT 编解码（JOSE）
+bcrypt>=4.1.0,<5.0.0               # 密码哈希（直接用 bcrypt 包，不依赖已停维的 passlib）
+
+# ---- 文档解析（本轮：docx 仅读取，txt 编码检测）----
+python-docx>=1.1.0                 # 读取 .docx 输入
+charset-normalizer>=3.3.0          # .txt 编码检测（替代 chardet，修正点 #5）
+
+# ---- LLM：OpenAI 兼容一次性生成（brief §7，纪要生成用）----
+openai>=1.30.0
+
+# ---- AI 框架：RAG 链（后续轮实现，本轮先定依赖，修正点 #1/#2）----
+langchain>=0.2.0,<0.4.0            # 现代 LCEL；非 langchain<0.1；ConversationalRetrievalChain 已弃用
+langchain-core>=0.2.0,<0.4.0       # Runnable / trim_messages / 基础抽象
+langchain-community>=0.2.0,<0.4.0  # Chroma 向量库封装（langchain_community.vectorstores.chroma）
+langchain-openai>=0.1.0,<0.4.0     # ChatOpenAI / OpenAIEmbeddings —— 走 OpenAI 兼容模式
+                                    # 【关键】业务空间专属 key（sk-ws-）只支持兼容端点，
+                                    # 不支持 DashScope 原生 SDK，故不用 ChatTongyi/DashScopeEmbeddings，
+                                    # 改用 langchain-openai + 百炼兼容 base_url（见 test/README.md）
+
+# ---- 向量库 ----
+chromadb>=0.5.0                    # 本地持久化（本轮不 import，依赖先定）

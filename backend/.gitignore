@@ -1,0 +1,22 @@
+# 环境变量（含密钥），不提交
+.env
+
+# Python 虚拟环境
+.venv/
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 运行时数据（保留目录结构，忽略运行时内容）
+data/chroma_db/*
+!data/chroma_db/.gitkeep
+data/users.json
+data/meetings/*
+!data/meetings/.gitkeep
+
+# IDE / 系统
+.vscode/
+.idea/
+.DS_Store

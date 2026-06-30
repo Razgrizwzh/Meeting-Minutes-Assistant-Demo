@@ -1,0 +1,97 @@
+/* ============================================================
+   会议纪要助手 —— 全局样式
+   简洁现代：白/浅灰主色，蓝色强调；三栏布局基础
+   ============================================================ */
+
+:root {
+  --ma-bg: #f5f7fa;
+  --ma-surface: #ffffff;
+  --ma-border: #e4e7ed;
+  --ma-text: #303133;
+  --ma-text-secondary: #909399;
+  --ma-primary: #409eff;
+  --ma-primary-light: #ecf5ff;
+  --ma-radius: 8px;
+  --ma-header-h: 56px;
+  --ma-sidebar-w: 220px;
+  --ma-sidebar-w-collapsed: 64px;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC',
+    'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ma-text);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--ma-bg);
+}
+
+/* 三栏布局 */
+.app-layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.app-main {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 通用卡片占位 */
+.placeholder-card {
+  background: var(--ma-surface);
+  border: 1px solid var(--ma-border);
+  border-radius: var(--ma-radius);
+  padding: 16px 20px;
+}
+
+.placeholder-card h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--ma-text);
+}
+
+.placeholder-card .ph-hint {
+  color: var(--ma-text-secondary);
+  font-size: 13px;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #909399;
+}
