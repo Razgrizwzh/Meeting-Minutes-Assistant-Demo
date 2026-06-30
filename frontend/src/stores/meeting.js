@@ -1,5 +1,9 @@
 import { defineStore } from 'pinia'
 import * as meetingsApi from '@/api/meetings'
+import * as chatApi from '@/api/chat'
+import { v4 as uuidv4 } from 'uuid'
+
+const SESSION_ID_KEY = 'ma_session_id'
 
 export const useMeetingStore = defineStore('meeting', {
   state: () => ({
@@ -12,23 +16,36 @@ export const useMeetingStore = defineStore('meeting', {
     // 历史列表（登录后）
     history: [],
     loadingHistory: false,
+    // RAG 对话
+    chatHistory: [], // [{role:'user'|'assistant', content, sources?}]
+    asking: false,
   }),
 
   getters: {
     hasMinutes: (state) => !!state.currentMinutes,
+    // 稳定 sessionId（localStorage，未登录也保留），用于 RAG 会话隔离
+    sessionId: () => {
+      let sid = localStorage.getItem(SESSION_ID_KEY)
+      if (!sid) {
+        sid = uuidv4()
+        localStorage.setItem(SESSION_ID_KEY, sid)
+      }
+      return sid
+    },
   },
 
   actions: {
     // 生成纪要：payload { text?, file?, meetingName?, date? }
     async generate(payload) {
       this.generating = true
-      // 记录输入长度，用于进度条预估（文件按字节数近似为字符数）
       this.inputLength = payload.file ? payload.file.size || 0 : (payload.text || '').length
       try {
-        const { data } = await meetingsApi.generateMeeting(payload)
+        const { data } = await meetingsApi.generateMeeting({ ...payload, sessionId: this.sessionId })
         this.currentMeetingId = data.meeting_id
         this.currentMinutes = data.minutes
         this.currentMarkdown = data.markdown
+        // 生成新纪要时清空上一轮对话
+        this.clearChat()
         // 登录用户生成后刷新历史列表
         if (data.meeting_id) {
           this.loadHistory().catch(() => {})
@@ -55,13 +72,48 @@ export const useMeetingStore = defineStore('meeting', {
       this.currentMeetingId = data.meeting_id
       this.currentMinutes = data.minutes
       this.currentMarkdown = data.markdown
+      // 切换会议时清空对话
+      this.clearChat()
       return data
+    },
+
+    // RAG 追问
+    async sendQuery(question) {
+      if (!question.trim() || this.asking) return
+      this.chatHistory.push({ role: 'user', content: question })
+      this.asking = true
+      try {
+        const { data } = await chatApi.query({
+          sessionId: this.sessionId,
+          question,
+          meetingId: this.currentMeetingId || undefined,
+        })
+        this.chatHistory.push({
+          role: 'assistant',
+          content: data.answer,
+          sources: data.sources || [],
+        })
+        return data
+      } catch (err) {
+        // 后端校验错误（422）时 detail 是数组，需取首项 msg；其余取字符串
+        const raw = err.response?.data?.detail
+        const detail = Array.isArray(raw) ? raw[0]?.msg : raw || '追问失败，请重试'
+        this.chatHistory.push({ role: 'assistant', content: `⚠️ ${detail}` })
+        throw err
+      } finally {
+        this.asking = false
+      }
+    },
+
+    clearChat() {
+      this.chatHistory = []
     },
 
     clear() {
       this.currentMeetingId = null
       this.currentMinutes = null
       this.currentMarkdown = ''
+      this.clearChat()
     },
   },
 })

@@ -10,7 +10,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.api.deps import get_current_user, get_optional_user
 from app.schemas.meetings import (
@@ -19,7 +19,13 @@ from app.schemas.meetings import (
     MeetingItem,
     Minutes,
 )
-from app.services import document_parser, meeting_store, minutes_generator, minutes_renderer
+from app.services import (
+    document_parser,
+    meeting_store,
+    minutes_generator,
+    minutes_renderer,
+    vector_store,
+)
 
 router = APIRouter(prefix="/api/meetings", tags=["meetings"])
 
@@ -27,15 +33,46 @@ router = APIRouter(prefix="/api/meetings", tags=["meetings"])
 _ALLOWED_EXT = {".txt", ".log", ".docx"}
 
 
+def _index_minutes_task(
+    user_id: str | None,
+    session_id: str,
+    meeting_id: str,
+    transcript: str,
+    minutes: dict,
+) -> None:
+    """后台任务：把会议转写 + 纪要文本向量化入库。失败仅记日志，不阻断主流程。"""
+    try:
+        # 由转写 + 结构化纪要共同拼成可检索文本（纪要更利于语义命中）
+        from app.services.minutes_renderer import render_markdown
+        searchable = f"{transcript}\n\n{render_markdown(minutes)}"
+        vector_store.add_documents(
+            user_id=user_id,
+            session_id=session_id,
+            meeting_id=meeting_id,
+            text=searchable,
+            meeting_name=minutes.get("meeting_name", ""),
+            date=minutes.get("date", ""),
+        )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("后台向量化失败 meeting_id=%s", meeting_id)
+
+
 @router.post("/generate", response_model=GenerateResponse)
 async def generate_meeting(
+    background_tasks: BackgroundTasks,
     user: dict | None = Depends(get_optional_user),
     text: str | None = Form(None),
     file: UploadFile | None = File(None),
     meeting_name: str | None = Form(None),
     date: str | None = Form(None),
+    session_id: str | None = Form(None),
 ) -> GenerateResponse:
-    """生成会议纪要。支持粘贴文本（text）或上传文件（file）。登录则保存历史。"""
+    """生成会议纪要。支持粘贴文本（text）或上传文件（file）。登录则保存历史。
+
+    无论登录与否，生成成功后都异步入库（登录按 user_id 隔离、匿名按 session_id 隔离），
+    以便随后对本次会议追问。session_id 由前端生成（UUID，存 localStorage）。
+    """
     # 1. 获取文本
     transcript = ""
     if file is not None and file.filename:
@@ -68,14 +105,24 @@ async def generate_meeting(
     minutes = minutes_generator.generate_minutes(transcript, meta)
     markdown = minutes_renderer.render_markdown(minutes)
 
-    # 3. 登录用户保存历史
+    # 3. 登录用户保存历史；匿名不落库但生成临时 meeting_id 供向量化关联
+    user_id = user["user_id"] if user is not None else None
     meeting_id = None
     if user is not None:
-        record = meeting_store.save_meeting(user["user_id"], minutes, transcript)
+        record = meeting_store.save_meeting(user_id, minutes, transcript)
         meeting_id = record["meeting_id"]
+    else:
+        import uuid
+        meeting_id = f"anon_{uuid.uuid4().hex[:12]}"
+
+    # 4. 后台异步入库（向量化），不阻塞响应
+    sid = session_id or ""
+    background_tasks.add_task(
+        _index_minutes_task, user_id, sid, meeting_id, transcript, minutes
+    )
 
     return GenerateResponse(
-        meeting_id=meeting_id,
+        meeting_id=meeting_id if user is not None else None,
         meeting_name=minutes.get("meeting_name", "未命名会议"),
         date=minutes.get("date", ""),
         minutes=Minutes.model_validate(minutes),

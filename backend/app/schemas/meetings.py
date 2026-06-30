@@ -69,3 +69,16 @@ class MeetingDetail(BaseModel):
     transcript: str = ""
     minutes: Minutes
     markdown: str
+
+
+# ---- 对话追问 ----
+
+
+class ChatSource(BaseModel):
+    meeting_name: str = ""
+    date: str = ""
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list[ChatSource] = []

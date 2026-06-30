@@ -1,4 +1,11 @@
 import http from './index'
 
-// 发起追问（后续轮实现 RAG；本轮后端返回 501）
-export const query = (payload) => http.post('/chat/query', payload)
+// 发起追问：payload { sessionId, question, meetingId? }
+// 后端 ChatQueryIn 期望 snake_case（session_id/question/meeting_id），
+// 此处做一次映射，避免 422 Unprocessable Content。
+export const query = (payload) =>
+  http.post('/chat/query', {
+    session_id: payload.sessionId,
+    question: payload.question,
+    meeting_id: payload.meetingId,
+  })

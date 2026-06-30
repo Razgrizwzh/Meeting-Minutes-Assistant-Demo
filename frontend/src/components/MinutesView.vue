@@ -1,8 +1,10 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 import { Download } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { useMeetingStore } from '@/stores/meeting'
+import { exportMeeting } from '@/api/meetings'
 import GeneratingProgress from './GeneratingProgress.vue'
 
 const meeting = useMeetingStore()
@@ -20,13 +22,55 @@ const renderedHtml = computed(() => {
   if (!meeting.currentMarkdown) return ''
   return md.render(meeting.currentMarkdown)
 })
+
+// 可导出：仅登录已保存（有 meeting_id）
+const canExport = computed(() => meeting.hasMinutes && !meeting.generating && !!meeting.currentMeetingId)
+const exporting = ref(false)
+
+async function handleExport(format) {
+  if (!meeting.currentMeetingId) return
+  exporting.value = true
+  try {
+    const { data } = await exportMeeting(meeting.currentMeetingId, format)
+    // data 是 Blob；从响应头拿不到稳定文件名时用默认名
+    const blob = new Blob([data], {
+      type: format === 'md' ? 'text/markdown;charset=utf-8' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${meeting.currentMinutes?.meeting_name || '会议纪要'}.${format === 'md' ? 'md' : 'docx'}`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success(`已导出 ${format === 'md' ? 'Markdown' : 'Word'}`)
+  } catch (err) {
+    ElMessage.error('导出失败，请重试')
+  } finally {
+    exporting.value = false
+  }
+}
 </script>
 
 <template>
   <section class="minutes-view">
     <div class="view-header">
       <h3>会议纪要</h3>
-      <el-tooltip v-if="meeting.hasMinutes && !meeting.generating" content="导出功能后续轮实现" placement="top">
+      <el-dropdown v-if="canExport" trigger="click" @command="handleExport">
+        <el-button :icon="Download" :loading="exporting">导出</el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="md">导出 Markdown</el-dropdown-item>
+            <el-dropdown-item command="docx">导出 Word</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <el-tooltip
+        v-else-if="meeting.hasMinutes && !meeting.generating && !meeting.currentMeetingId"
+        content="登录后保存纪要即可导出"
+        placement="top"
+      >
         <el-button :icon="Download" disabled>导出</el-button>
       </el-tooltip>
     </div>
