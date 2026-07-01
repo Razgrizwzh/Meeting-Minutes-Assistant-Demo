@@ -1,20 +1,28 @@
 /* ============================================================
    会议纪要助手 —— 全局样式
    简洁现代：白/浅灰主色，蓝色强调；三栏布局基础
+   浅色/深色双主题：所有颜色经 --ma-* 变量驱动，
+   html.dark 下覆写该变量集即可整体切换。
    ============================================================ */
 
 :root {
   --ma-bg: #f5f7fa;
   --ma-surface: #ffffff;
+  --ma-surface-2: #fafbfc;        /* 次级面板背景（气泡、嵌套卡片） */
   --ma-border: #e4e7ed;
+  --ma-border-light: #f0f2f5;
   --ma-text: #303133;
   --ma-text-secondary: #909399;
   --ma-primary: #409eff;
   --ma-primary-light: #ecf5ff;
-  --ma-radius: 8px;
+  --ma-danger: #f56c6c;
+  --ma-radius: 10px;
+  --ma-radius-sm: 6px;
   --ma-header-h: 56px;
   --ma-sidebar-w: 220px;
   --ma-sidebar-w-collapsed: 64px;
+  --ma-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --ma-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
 
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC',
     'Microsoft YaHei', sans-serif;
@@ -24,6 +32,40 @@
   color-scheme: light;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---- 深色主题：覆写 --ma-* 变量集 ---- */
+html.dark {
+  --ma-bg: #14171c;
+  --ma-surface: #1d2129;
+  --ma-surface-2: #252a35;
+  --ma-border: #39404d;
+  --ma-border-light: #2c323d;
+  --ma-text: #e6e8eb;
+  --ma-text-secondary: #909399;
+  --ma-primary: #409eff;
+  --ma-primary-light: #1f2a3a;
+  --ma-danger: #f56c6c;
+  --ma-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ma-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.45);
+
+  color-scheme: dark;
+}
+
+/* 把 Element Plus 的关键色变量对齐到 --ma-*，避免深色下面板/弹窗色差 */
+html.dark {
+  --el-bg-color: var(--ma-surface);
+  --el-bg-color-page: var(--ma-bg);
+  --el-bg-color-overlay: var(--ma-surface);
+  --el-text-color-primary: var(--ma-text);
+  --el-text-color-regular: var(--ma-text);
+  --el-text-color-secondary: var(--ma-text-secondary);
+  --el-border-color: var(--ma-border);
+  --el-border-color-light: var(--ma-border-light);
+  --el-border-color-lighter: var(--ma-border-light);
+  --el-fill-color: var(--ma-surface-2);
+  --el-fill-color-light: var(--ma-surface-2);
+  --el-fill-color-blank: var(--ma-surface);
 }
 
 * {
@@ -40,6 +82,8 @@ body,
 
 body {
   background: var(--ma-bg);
+  /* 主题切换时背景平滑过渡 */
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 /* 三栏布局 */
@@ -62,6 +106,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  background: var(--ma-bg);
 }
 
 /* 通用卡片占位 */
@@ -83,15 +128,23 @@ body {
   font-size: 13px;
 }
 
-/* 滚动条美化 */
+/* 滚动条美化（适配浅/深色） */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
-  background: #c0c4cc;
+  background: var(--ma-border);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #909399;
+  background: var(--ma-text-secondary);
+}
+
+/* 让 Element Plus 的卡片/面板类组件继承 --ma-* 阴影与圆角，视觉更统一 */
+.el-card {
+  border-radius: var(--ma-radius);
 }

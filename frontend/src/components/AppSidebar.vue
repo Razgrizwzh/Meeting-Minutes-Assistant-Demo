@@ -129,7 +129,8 @@ async function onDeleteClick(item) {
   border-right: 1px solid var(--ma-border);
   display: flex;
   flex-direction: column;
-  transition: width 0.2s ease;
+  transition: width 0.2s ease, background-color 0.25s ease, border-color 0.25s ease;
+  box-shadow: 1px 0 0 var(--ma-border-light);
 }
 .app-sidebar.collapsed {
   width: var(--ma-sidebar-w-collapsed);
@@ -140,7 +141,7 @@ async function onDeleteClick(item) {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  border-bottom: 1px solid var(--ma-border);
+  border-bottom: 1px solid var(--ma-border-light);
 }
 .title-icon {
   color: var(--ma-primary);
@@ -169,10 +170,10 @@ async function onDeleteClick(item) {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--ma-radius-sm);
   cursor: pointer;
   margin-bottom: 4px;
-  transition: background 0.15s;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .history-item:hover {
   background: var(--ma-primary-light);

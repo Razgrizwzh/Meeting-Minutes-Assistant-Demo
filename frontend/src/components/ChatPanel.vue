@@ -57,7 +57,6 @@ function handleEnterKey(e) {
 <template>
   <section class="chat-panel">
     <div class="panel-header">
-      <h3>对话追问</h3>
       <span class="panel-hint" v-if="meeting.hasMinutes">基于 RAG 检索当前/历史会议</span>
       <span class="panel-hint" v-else>请先生成纪要</span>
     </div>
@@ -123,20 +122,18 @@ function handleEnterKey(e) {
   border: 1px solid var(--ma-border);
   border-radius: var(--ma-radius);
   padding: 16px 20px;
+  box-shadow: var(--ma-shadow);
   flex: 1 1 0;
   min-height: 220px;
   display: flex;
   flex-direction: column;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
 }
 .panel-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
   margin-bottom: 12px;
-}
-.panel-header h3 {
-  margin: 0;
-  font-size: 16px;
 }
 .panel-hint {
   font-size: 12px;
@@ -148,7 +145,7 @@ function handleEnterKey(e) {
   padding: 4px 4px 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   min-height: 120px;
 }
 .bubble {
@@ -156,6 +153,12 @@ function handleEnterKey(e) {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* 气泡入场动画 */
+  animation: bubble-in 0.22s ease;
+}
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .bubble-user {
   align-self: flex-end;
@@ -165,7 +168,7 @@ function handleEnterKey(e) {
 }
 .bubble-content {
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: 14px;
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.6;
@@ -174,10 +177,12 @@ function handleEnterKey(e) {
   background: var(--ma-primary);
   color: #fff;
   border-bottom-right-radius: 4px;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.25);
 }
 .bubble-ai .bubble-content {
-  background: #f0f2f5;
+  background: var(--ma-surface-2);
   color: var(--ma-text);
+  border: 1px solid var(--ma-border-light);
   border-bottom-left-radius: 4px;
 }
 .sources {
@@ -194,6 +199,8 @@ function handleEnterKey(e) {
   display: flex;
   gap: 8px;
   align-items: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid var(--ma-border-light);
 }
 .chat-input .el-input {
   flex: 1;

@@ -1,11 +1,13 @@
 <script setup>
-import { User, SwitchButton } from '@element-plus/icons-vue'
+import { User, SwitchButton, Sunny, Moon } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
+import { useThemeStore } from '@/stores/theme'
 
 const auth = useAuthStore()
 const ui = useUiStore()
+const theme = useThemeStore()
 
 async function handleLogout() {
   await auth.logout()
@@ -25,6 +27,14 @@ function openLogin() {
     </div>
 
     <div class="header-right">
+      <!-- 主题切换 -->
+      <el-button
+        class="theme-btn"
+        circle
+        :icon="theme.isDark ? Sunny : Moon"
+        :title="theme.isDark ? '切换到浅色模式' : '切换到深色模式'"
+        @click="theme.toggle"
+      />
       <template v-if="auth.isLoggedIn">
         <el-dropdown trigger="click">
           <span class="user-trigger">
@@ -57,6 +67,8 @@ function openLogin() {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
+  box-shadow: 0 1px 0 var(--ma-border-light);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 .brand {
   display: flex;
@@ -70,15 +82,28 @@ function openLogin() {
   font-size: 18px;
   font-weight: 600;
   color: var(--ma-text);
+  letter-spacing: 0.5px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.theme-btn {
+  color: var(--ma-text-secondary);
+}
+.theme-btn:hover {
+  color: var(--ma-primary);
 }
 .user-trigger {
   display: flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  border-radius: var(--ma-radius-sm);
   color: var(--ma-text);
+  transition: background-color 0.2s ease;
 }
 .user-trigger:hover {
   background: var(--ma-primary-light);

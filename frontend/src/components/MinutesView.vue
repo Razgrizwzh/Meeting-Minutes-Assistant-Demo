@@ -57,8 +57,7 @@ async function handleExport(format) {
 
 <template>
   <section class="minutes-view">
-    <div class="view-header">
-      <h3>会议纪要</h3>
+    <div v-if="meeting.hasMinutes && !meeting.generating" class="view-header">
       <el-dropdown v-if="canExport" trigger="click" @command="handleExport">
         <el-button :icon="Download" :loading="exporting">导出</el-button>
         <template #dropdown>
@@ -108,20 +107,18 @@ async function handleExport(format) {
   border: 1px solid var(--ma-border);
   border-radius: var(--ma-radius);
   padding: 16px 20px;
+  box-shadow: var(--ma-shadow);
   flex: 1 1 0;
   min-height: 240px;
   display: flex;
   flex-direction: column;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
 }
 .view-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: 12px;
-}
-.view-header h3 {
-  margin: 0;
-  font-size: 16px;
 }
 .minutes-body {
   flex: 1;

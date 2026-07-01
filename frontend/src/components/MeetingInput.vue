@@ -150,8 +150,11 @@ async function handleGenerate() {
   border: 1px solid var(--ma-border);
   border-radius: var(--ma-radius);
   padding: 16px 20px;
-  /* 收起时收缩为一行标题栏 */
-  transition: padding 0.2s ease;
+  box-shadow: var(--ma-shadow);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, padding 0.2s ease;
+}
+.meeting-input:hover {
+  box-shadow: var(--ma-shadow-hover);
 }
 .meeting-input.collapsed {
   padding-bottom: 12px;
