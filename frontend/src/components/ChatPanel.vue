@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, computed } from 'vue'
+import { ref, nextTick, computed, inject, onMounted, onBeforeUnmount } from 'vue'
 import { Promotion } from '@element-plus/icons-vue'
 import { useMeetingStore } from '@/stores/meeting'
 
@@ -7,6 +7,19 @@ const meeting = useMeetingStore()
 
 const input = ref('')
 const scrollRef = ref(null)
+// el-input 实例 ref：供「针对内容提问」按钮聚焦
+const inputRef = ref(null)
+
+// 由 MainView 注入：注册聚焦函数；组件卸载时清空，避免切 Tab 后引用失效
+const registerChatFocus = inject('registerChatFocus', null)
+onMounted(() => {
+  if (registerChatFocus) {
+    registerChatFocus(() => inputRef.value?.focus?.())
+  }
+})
+onBeforeUnmount(() => {
+  if (registerChatFocus) registerChatFocus(null)
+})
 
 const canAsk = computed(() => meeting.hasMinutes && !meeting.asking)
 
@@ -82,6 +95,7 @@ function handleEnterKey(e) {
 
     <div class="chat-input">
       <el-input
+        ref="inputRef"
         v-model="input"
         type="textarea"
         :rows="2"

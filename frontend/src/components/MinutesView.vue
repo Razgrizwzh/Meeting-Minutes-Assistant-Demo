@@ -1,13 +1,15 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, inject } from 'vue'
 import MarkdownIt from 'markdown-it'
-import { Download } from '@element-plus/icons-vue'
+import { Download, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useMeetingStore } from '@/stores/meeting'
 import { exportMeeting } from '@/api/meetings'
 import GeneratingProgress from './GeneratingProgress.vue'
 
 const meeting = useMeetingStore()
+// 由 MainView 注入：切到 Chat Tab 并聚焦输入框
+const switchToChat = inject('switchToChat', null)
 
 // markdown-it 实例：启用表格、删除线等
 // 【安全取舍】demo 信任 LLM 输出，未做 HTML sanitize；
@@ -87,6 +89,16 @@ async function handleExport(format) {
       description="尚未生成纪要，请在上方输入会议文本后点击「生成纪要」"
       :image-size="80"
     />
+
+    <!-- 纪要底部快捷操作：跳转到对话 Tab 追问 -->
+    <div
+      v-if="meeting.hasMinutes && !meeting.generating && switchToChat"
+      class="minutes-footer"
+    >
+      <el-button type="primary" plain :icon="ChatDotRound" @click="switchToChat">
+        针对内容提问
+      </el-button>
+    </div>
   </section>
 </template>
 
@@ -116,6 +128,13 @@ async function handleExport(format) {
   overflow: auto;
   line-height: 1.7;
   color: var(--ma-text);
+}
+.minutes-footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ma-border);
+  display: flex;
+  justify-content: center;
 }
 </style>
 

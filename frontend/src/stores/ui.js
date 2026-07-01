@@ -7,6 +7,10 @@ export const useUiStore = defineStore('ui', {
     // 'login' | 'register'
     authMode: 'login',
     sidebarCollapsed: false,
+    // 会议输入区是否收起（收起后只剩标题栏，给下方 Tab 内容区让出纵向空间）
+    inputCollapsed: false,
+    // 主区当前激活的 Tab：'minutes' | 'chat'
+    activeMainTab: 'minutes',
   }),
 
   actions: {
@@ -19,6 +23,12 @@ export const useUiStore = defineStore('ui', {
     },
     toggleSidebar() {
       this.sidebarCollapsed = !this.sidebarCollapsed
+    },
+    toggleInputCollapsed() {
+      this.inputCollapsed = !this.inputCollapsed
+    },
+    setActiveMainTab(tab) {
+      this.activeMainTab = tab
     },
   },
 })
