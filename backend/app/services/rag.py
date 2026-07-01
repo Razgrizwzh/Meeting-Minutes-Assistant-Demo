@@ -80,9 +80,18 @@ def answer_query(
 
     result = retrieval_chain.invoke({"input": question, "chat_history": history})
     answer: str = result.get("answer", "")
+    sources = _extract_sources(result.get("context", []) or [])
+
+    # 记录对话历史
+    session_history.append_turn(session_id, question, answer)
+    return {"answer": answer, "sources": sources}
+
+
+def _extract_sources(docs) -> list[dict]:
+    """从检索文档 metadata 去重提取来源 [{meeting_name, date}]。"""
     sources: list[dict] = []
     seen = set()
-    for doc in result.get("context", []) or []:
+    for doc in docs or []:
         md = doc.metadata or {}
         key = (md.get("meeting_name", ""), md.get("date", ""))
         if key in seen:
@@ -90,7 +99,52 @@ def answer_query(
         seen.add(key)
         if any(key):
             sources.append({"meeting_name": key[0], "date": key[1]})
+    return sources
 
-    # 记录对话历史
+
+async def stream_answer(
+    user_id: str | None,
+    session_id: str,
+    meeting_id: str | None,
+    question: str,
+):
+    """流式版问答：异步生成器，逐 chunk 产出 dict 事件。
+
+    产出顺序：
+        {"type": "sources", "sources": [...]}   检索来源（流开始时一次）
+        {"type": "token", "content": str}       逐段回答文本
+        {"type": "done", "answer": str}         结束，带完整 answer
+    异常由调用方捕获（路由层转 SSE error 事件）。
+    """
+    llm = _get_llm()
+    retriever = vector_store.as_retriever(user_id, session_id, meeting_id)
+    history = session_history.get_history(session_id)
+
+    # 1. history-aware 改写检索词 + 检索：先拿到 docs 提取 sources
+    history_aware_retriever = create_history_aware_retriever(llm, retriever, _CONDENSE_PROMPT)
+    # retriever 链以 {input, chat_history} 输入，invoke 返回 {question, context, answer}
+    # 这里只取检索结果（context）
+    retrieval_result = await history_aware_retriever.ainvoke(
+        {"input": question, "chat_history": history}
+    )
+    # history_aware_retriever 直接返回 docs list
+    docs = retrieval_result if isinstance(retrieval_result, list) else retrieval_result.get("context", [])
+    sources = _extract_sources(docs)
+    yield {"type": "sources", "sources": sources}
+
+    # 2. 用 docs 构造上下文，流式生成回答
+    qa_chain = create_stuff_documents_chain(llm, _QA_PROMPT)
+    full = []
+    async for chunk in qa_chain.astream(
+        {"input": question, "chat_history": history, "context": docs}
+    ):
+        # create_stuff_documents_chain 流式产出的是 str chunk
+        text = chunk if isinstance(chunk, str) else str(chunk)
+        if text:
+            full.append(text)
+            yield {"type": "token", "content": text}
+
+    answer = "".join(full)
+    # 3. 记录内存对话历史（RAG 检索改写用，最近 5 轮）
     session_history.append_turn(session_id, question, answer)
-    return {"answer": answer, "sources": sources}
+    yield {"type": "done", "answer": answer}

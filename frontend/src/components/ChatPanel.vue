@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, computed, inject, onMounted, onBeforeUnmount } from 'vue'
+import { ref, nextTick, computed, watch, inject, onMounted, onBeforeUnmount } from 'vue'
 import { Promotion } from '@element-plus/icons-vue'
 import { useMeetingStore } from '@/stores/meeting'
 
@@ -29,12 +29,18 @@ async function scrollToBottom() {
   if (el) el.scrollTop = el.scrollHeight
 }
 
+// 流式问答时，AI 气泡 content 持续增长 -> 跟随滚到底
+watch(
+  () => meeting.chatHistory.length + (meeting.chatHistory.at(-1)?.content?.length || 0),
+  scrollToBottom,
+)
+
 async function handleSend() {
   const q = input.value.trim()
   if (!q || !meeting.hasMinutes || meeting.asking) return
   input.value = ''
   try {
-    await meeting.sendQuery(q)
+    meeting.sendQuery(q)  // 流式：不 await，watch 负责滚动
   } catch {
     // 错误消息已由 store 推入 chatHistory
   }
@@ -75,7 +81,10 @@ function handleEnterKey(e) {
           class="bubble"
           :class="msg.role === 'user' ? 'bubble-user' : 'bubble-ai'"
         >
-          <div class="bubble-content">{{ msg.content }}</div>
+          <div class="bubble-content">
+            <template v-if="msg.content">{{ msg.content }}</template>
+            <span v-else-if="msg.role === 'assistant'" class="typing">正在生成回答…</span>
+          </div>
           <div v-if="msg.sources && msg.sources.length" class="sources">
             <span class="sources-label">来源：</span>
             <el-tag
@@ -194,6 +203,10 @@ function handleEnterKey(e) {
 }
 .sources-label {
   color: var(--ma-text-secondary);
+}
+.typing {
+  color: var(--ma-text-secondary);
+  font-style: italic;
 }
 .chat-input {
   display: flex;

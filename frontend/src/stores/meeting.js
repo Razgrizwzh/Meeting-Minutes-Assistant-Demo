@@ -100,32 +100,31 @@ export const useMeetingStore = defineStore('meeting', {
       return { wasCurrent }
     },
 
-    // RAG 追问
+    // RAG 追问（SSE 流式）：逐 token 填进 assistant 气泡
     async sendQuery(question) {
       if (!question.trim() || this.asking) return
       this.chatHistory.push({ role: 'user', content: question })
+      // 占位 assistant 气泡，流式逐 token 累加
+      const aiIdx = this.chatHistory.push({ role: 'assistant', content: '', sources: [] }) - 1
       this.asking = true
-      try {
-        const { data } = await chatApi.query({
-          sessionId: this.sessionId,
-          question,
-          meetingId: this.currentMeetingId || undefined,
-        })
-        this.chatHistory.push({
-          role: 'assistant',
-          content: data.answer,
-          sources: data.sources || [],
-        })
-        return data
-      } catch (err) {
-        // 后端校验错误（422）时 detail 是数组，需取首项 msg；其余取字符串
-        const raw = err.response?.data?.detail
-        const detail = Array.isArray(raw) ? raw[0]?.msg : raw || '追问失败，请重试'
-        this.chatHistory.push({ role: 'assistant', content: `⚠️ ${detail}` })
-        throw err
-      } finally {
-        this.asking = false
-      }
+      const aiBubble = this.chatHistory[aiIdx]
+
+      return chatApi.streamQuery(
+        { sessionId: this.sessionId, question, meetingId: this.currentMeetingId || undefined },
+        {
+          onSources: (sources) => { aiBubble.sources = sources },
+          onToken: (piece) => { aiBubble.content += piece },
+          onDone: ({ answer }) => {
+            // token 累加已基本完整，用 done 的 answer 兜底覆盖（防个别 chunk 丢失）
+            if (answer && !aiBubble.content) aiBubble.content = answer
+          },
+          onError: (msg) => {
+            aiBubble.content = `⚠️ ${msg}`
+            aiBubble.sources = []
+          },
+          onFinally: () => { this.asking = false },
+        },
+      )
     },
 
     clearChat() {
