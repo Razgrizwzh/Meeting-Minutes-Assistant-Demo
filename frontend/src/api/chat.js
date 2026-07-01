@@ -9,3 +9,6 @@ export const query = (payload) =>
     question: payload.question,
     meeting_id: payload.meetingId,
   })
+
+// 取某会议持久化的对话记录（需登录）：{ messages: [{role, content, sources}] }
+export const getHistory = (meetingId) => http.get(`/chat/${meetingId}`)

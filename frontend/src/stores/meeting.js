@@ -72,9 +72,23 @@ export const useMeetingStore = defineStore('meeting', {
       this.currentMeetingId = data.meeting_id
       this.currentMinutes = data.minutes
       this.currentMarkdown = data.markdown
-      // 切换会议时清空对话
+      // 切换会议：先清空，再尝试从后端拉该会议的持久化对话
       this.clearChat()
+      await this.loadChat()
       return data
+    },
+
+    // 加载当前会议的持久化对话（登录用户）。匿名无 meeting_id 则保持空。
+    async loadChat() {
+      const mid = this.currentMeetingId
+      if (!mid) return
+      try {
+        const { data } = await chatApi.getHistory(mid)
+        this.chatHistory = data.messages || []
+      } catch {
+        // 拉取失败（如 401/404）则保持空对话，不打扰用户
+        this.chatHistory = []
+      }
     },
 
     // 删除历史会议：从列表移除；若删的正是当前展示项，清空主区
