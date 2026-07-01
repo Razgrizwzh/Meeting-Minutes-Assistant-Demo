@@ -1,9 +1,21 @@
 <script setup>
 import { ref, nextTick, computed, watch, inject, onMounted, onBeforeUnmount } from 'vue'
 import { Promotion } from '@element-plus/icons-vue'
+import MarkdownIt from 'markdown-it'
 import { useMeetingStore } from '@/stores/meeting'
 
 const meeting = useMeetingStore()
+
+// markdown-it：渲染 AI 回答中的 **加粗** / - 列表 / `代码` / 链接 等，
+// 让回答不再是混杂 "**" "-" 的纯文本。与 MinutesView 配置一致。
+// 【安全取舍】demo 信任 LLM 输出，未做 HTML sanitize；
+// 生产环境应对 v-html 内容做 DOMPurify 等过滤防 XSS。
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
+
+function renderMarkdown(text) {
+  if (!text) return ''
+  return md.render(text)
+}
 
 const input = ref('')
 const scrollRef = ref(null)
@@ -81,10 +93,14 @@ function handleEnterKey(e) {
           class="bubble"
           :class="msg.role === 'user' ? 'bubble-user' : 'bubble-ai'"
         >
-          <div class="bubble-content">
-            <template v-if="msg.content">{{ msg.content }}</template>
-            <span v-else-if="msg.role === 'assistant'" class="typing">正在生成回答…</span>
+          <div
+            v-if="msg.role === 'assistant'"
+            class="bubble-content chat-markdown"
+          >
+            <span v-if="msg.content" v-html="renderMarkdown(msg.content)" />
+            <span v-else class="typing">正在生成回答…</span>
           </div>
+          <div v-else class="bubble-content">{{ msg.content }}</div>
           <div v-if="msg.sources && msg.sources.length" class="sources">
             <span class="sources-label">来源：</span>
             <el-tag
@@ -193,6 +209,43 @@ function handleEnterKey(e) {
   color: var(--ma-text);
   border: 1px solid var(--ma-border-light);
   border-bottom-left-radius: 4px;
+}
+/* AI 回答按 Markdown 渲染：重置 pre-wrap，让 <p>/<ul> 自然排版 */
+.chat-markdown {
+  white-space: normal;
+}
+.chat-markdown :deep(p) {
+  margin: 4px 0;
+}
+.chat-markdown :deep(p:first-child) {
+  margin-top: 0;
+}
+.chat-markdown :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.chat-markdown :deep(ul),
+.chat-markdown :deep(ol) {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+.chat-markdown :deep(li) {
+  margin: 2px 0;
+}
+.chat-markdown :deep(strong) {
+  font-weight: 600;
+}
+.chat-markdown :deep(code) {
+  background: var(--ma-border-light);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+.chat-markdown :deep(a) {
+  color: var(--ma-primary);
+  text-decoration: none;
+}
+.chat-markdown :deep(a:hover) {
+  text-decoration: underline;
 }
 .sources {
   display: flex;
